@@ -24,6 +24,14 @@ const historyPanel = document.getElementById("history-panel");
 const historyList = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
 const historyCount = document.getElementById("history-count");
+const chatSection = document.getElementById("chat-section");
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+const chatSendBtn = document.getElementById("chat-send");
+
+// Chat state
+let chatConversation = [];
+let pageContentForChat = "";
 
 // Settings
 
@@ -142,6 +150,7 @@ function showResult(text, wasTruncated) {
   summaryText.textContent = text;
   resultEl.classList.remove("hidden");
   summarizeBtn.disabled = false;
+  chatSection.classList.remove("hidden");
 
   if (wasTruncated) {
     truncationNote.textContent = `Page content was trimmed to ${MAX_CHARS.toLocaleString()} characters.`;
@@ -232,6 +241,11 @@ summarizeBtn.addEventListener("click", async () => {
     const { summary, wasTruncated } = await summarize(text, settings);
     showResult(summary, wasTruncated);
 
+    // Store page content for chat context and reset conversation
+    pageContentForChat = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
+    chatConversation = [];
+    chatMessages.innerHTML = "";
+
     // Save to history
     await saveToHistory(tab.url, tab.title, summary);
   } catch (err) {
@@ -280,14 +294,83 @@ historyList.addEventListener("click", (e) => {
   if (!item) return;
 
   const url = item.dataset.url;
-  const history = JSON.parse(historyList.dataset.cache || "[]");
-  // Find entry and show it
-  getHistory().then((hist) => {
-    const entry = hist.find((h) => h.url === url);
-    if (entry) {
-      showResult(entry.summary, false);
+  chrome.tabs.create({ url });
+});
+
+// Chat
+
+function addChatMessage(role, text) {
+  const div = document.createElement("div");
+  div.className = `chat-msg ${role}`;
+  div.textContent = text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return div;
+}
+
+async function sendChatMessage() {
+  const question = chatInput.value.trim();
+  if (!question) return;
+
+  chatInput.value = "";
+  chatSendBtn.disabled = true;
+
+  addChatMessage("user", question);
+  chatConversation.push({ role: "user", content: question });
+
+  const typingEl = addChatMessage("assistant", "Thinking...");
+  typingEl.classList.add("typing");
+
+  try {
+    const settings = await loadSettings();
+    const summary = summaryText.textContent;
+
+    const messages = [
+      {
+        role: "system",
+        content: `You are a helpful assistant. The user is reading a web page. Here is the page content:\n\n${pageContentForChat}\n\nHere is the summary you provided:\n\n${summary}\n\nAnswer the user's questions about this page. Be concise and helpful.`,
+      },
+      ...chatConversation,
+    ];
+
+    const response = await fetch(settings.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: settings.model,
+        messages,
+        temperature: 0.3,
+        max_tokens: 1024,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
     }
-  });
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "No response.";
+
+    typingEl.textContent = reply;
+    typingEl.classList.remove("typing");
+    chatConversation.push({ role: "assistant", content: reply });
+  } catch (err) {
+    typingEl.textContent = `Error: ${err.message}`;
+    typingEl.classList.remove("typing");
+    chatConversation.pop(); // remove the failed user message from conversation
+  }
+
+  chatSendBtn.disabled = false;
+  chatInput.focus();
+}
+
+chatSendBtn.addEventListener("click", sendChatMessage);
+
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
 });
 
 // Check if current page has a cached summary on open
