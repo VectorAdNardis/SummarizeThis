@@ -30,6 +30,13 @@
         <input type="number" id="max-chars" placeholder="10000" min="1000" step="1000">
         <span class="settings-hint">Max page text sent to the LLM. Lower if you get context errors.</span>
       </label>
+      <label>
+        Summary Format
+        <select id="summary-format">
+          <option value="plain">Plain text</option>
+          <option value="markdown">Markdown</option>
+        </select>
+      </label>
       <div class="settings-divider"></div>
       <label>
         Export Mode
