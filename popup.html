@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Page Summarizer</h1>
+      <button id="settings-toggle" class="icon-btn" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </header>
+
+    <div id="settings-panel" class="settings hidden">
+      <label>
+        API Endpoint
+        <input type="text" id="api-endpoint" placeholder="http://localhost:1234/v1/chat/completions">
+      </label>
+      <label>
+        Model Name
+        <input type="text" id="model-name" placeholder="default">
+      </label>
+      <button id="save-settings" class="btn btn-small">Save</button>
+    </div>
+
+    <button id="summarize-btn" class="btn btn-primary">Summarize This Page</button>
+
+    <div id="loading" class="hidden">
+      <div class="spinner"></div>
+      <span>Summarizing...</span>
+    </div>
+
+    <div id="error" class="error hidden"></div>
+
+    <div id="result" class="result hidden">
+      <div id="summary-text"></div>
+      <div class="result-footer">
+        <span id="truncation-note" class="note hidden"></span>
+        <button id="copy-btn" class="btn btn-small">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
