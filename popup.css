@@ -101,6 +101,37 @@ h1 {
   color: #666;
 }
 
+/* Mode toggle */
+.mode-toggle {
+  display: flex;
+  background: #272738;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 1px solid #3a3a50;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 7px 0;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.mode-btn:hover {
+  color: #ccc;
+}
+
+.mode-btn.active {
+  background: #7c6ff7;
+  color: #fff;
+}
+
 /* Buttons */
 .btn {
   border: none;

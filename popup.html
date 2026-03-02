@@ -25,6 +25,11 @@
         Model Name
         <input type="text" id="model-name" placeholder="default">
       </label>
+      <label>
+        Max Input Length (chars)
+        <input type="number" id="max-chars" placeholder="10000" min="1000" step="1000">
+        <span class="settings-hint">How much page text to send to the LLM. Extended mode uses 2x this value. Lower if you get context length errors.</span>
+      </label>
       <div class="settings-divider"></div>
       <label>
         Export Mode
@@ -39,6 +44,11 @@
         <span class="settings-hint">Relative to your Downloads folder (used in auto mode)</span>
       </label>
       <button id="save-settings" class="btn btn-small">Save</button>
+    </div>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="brief">Brief</button>
+      <button class="mode-btn" data-mode="extended">Extended</button>
     </div>
 
     <button id="summarize-btn" class="btn btn-primary">Summarize</button>

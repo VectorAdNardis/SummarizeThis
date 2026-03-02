@@ -1,4 +1,4 @@
-const MAX_CHARS = 10000;
+const DEFAULT_MAX_CHARS = 10000;
 const MAX_HISTORY = 200;
 
 const DEFAULT_SETTINGS = {
@@ -36,6 +36,7 @@ const exportBtn = document.getElementById("export-btn");
 const exportMenu = document.getElementById("export-menu");
 const exportSummaryBtn = document.getElementById("export-summary");
 const exportAllBtn = document.getElementById("export-all");
+const maxCharsInput = document.getElementById("max-chars");
 const exportModeSelect = document.getElementById("export-mode");
 const exportSubfolderInput = document.getElementById("export-subfolder");
 const historyToggle = document.getElementById("history-toggle");
@@ -44,29 +45,35 @@ const historyList = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
 const historyCount = document.getElementById("history-count");
 
+const modeBtns = document.querySelectorAll(".mode-btn");
+
 // State
 let chatConversation = [];
 let pageContentForChat = "";
 let currentPageUrl = "";
 let currentPageTitle = "";
+let summaryMode = "brief";
 
 // Settings
 
 async function loadSettings() {
-  const data = await chrome.storage.local.get(["endpoint", "model", "exportMode", "exportSubfolder"]);
+  const data = await chrome.storage.local.get(["endpoint", "model", "maxChars", "exportMode", "exportSubfolder"]);
   const endpoint = data.endpoint || DEFAULT_SETTINGS.endpoint;
   const model = data.model || DEFAULT_SETTINGS.model;
+  const maxChars = data.maxChars || DEFAULT_MAX_CHARS;
   endpointInput.value = endpoint;
   modelInput.value = model;
+  maxCharsInput.value = maxChars;
   exportModeSelect.value = data.exportMode || "ask";
   exportSubfolderInput.value = data.exportSubfolder || "PageSummaries";
-  return { endpoint, model };
+  return { endpoint, model, maxChars };
 }
 
 async function saveSettings() {
   await chrome.storage.local.set({
     endpoint: endpointInput.value.trim() || DEFAULT_SETTINGS.endpoint,
     model: modelInput.value.trim() || DEFAULT_SETTINGS.model,
+    maxChars: parseInt(maxCharsInput.value, 10) || DEFAULT_MAX_CHARS,
     exportMode: exportModeSelect.value,
     exportSubfolder: exportSubfolderInput.value.trim() || "PageSummaries",
   });
@@ -187,7 +194,7 @@ function showResult(text, wasTruncated) {
   summarizeBtn.disabled = false;
 
   if (wasTruncated) {
-    truncationNote.textContent = `(trimmed to ${MAX_CHARS.toLocaleString()} chars)`;
+    truncationNote.textContent = "(content was trimmed to fit model context)";
     truncationNote.classList.remove("hidden");
   } else {
     truncationNote.classList.add("hidden");
@@ -270,9 +277,27 @@ async function extractPageText() {
   return text.trim();
 }
 
+const SUMMARY_PROMPTS = {
+  brief: {
+    system:
+      "You are a helpful assistant. Summarize the following web page content concisely. Focus on the key points and main ideas. Use clear, readable language.",
+    user: "Please summarize this web page briefly:\n\n",
+    maxTokens: 1024,
+  },
+  extended: {
+    system:
+      "You are a helpful assistant. Provide a detailed, in-depth summary of the following content. If the content has chapters, sections, or subheadings, organize your summary to reflect that structure using markdown headings (###). Include nuanced details, key arguments, and supporting points. Be thorough but readable.",
+    user: "Please provide a detailed summary of this content:\n\n",
+    maxTokens: 4096,
+  },
+};
+
 async function summarize(text, settings) {
-  const wasTruncated = text.length > MAX_CHARS;
-  const content = wasTruncated ? text.slice(0, MAX_CHARS) : text;
+  const baseLimit = settings.maxChars || DEFAULT_MAX_CHARS;
+  const charLimit = summaryMode === "extended" ? baseLimit * 2 : baseLimit;
+  const wasTruncated = text.length > charLimit;
+  const content = wasTruncated ? text.slice(0, charLimit) : text;
+  const prompt = SUMMARY_PROMPTS[summaryMode];
 
   const response = await fetch(settings.endpoint, {
     method: "POST",
@@ -280,18 +305,11 @@ async function summarize(text, settings) {
     body: JSON.stringify({
       model: settings.model,
       messages: [
-        {
-          role: "system",
-          content:
-            "You are a helpful assistant. Summarize the following web page content concisely. Focus on the key points and main ideas. Use clear, readable language.",
-        },
-        {
-          role: "user",
-          content: `Please summarize this web page:\n\n${content}`,
-        },
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user + content },
       ],
       temperature: 0.3,
-      max_tokens: 1024,
+      max_tokens: prompt.maxTokens,
     }),
   });
 
@@ -327,7 +345,8 @@ summarizeBtn.addEventListener("click", async () => {
     showResult(summary, wasTruncated);
 
     // Store page content for chat context and reset conversation
-    pageContentForChat = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
+    const chatLimit = settings.maxChars || DEFAULT_MAX_CHARS;
+    pageContentForChat = text.length > chatLimit ? text.slice(0, chatLimit) : text;
     chatConversation = [];
     chatMessages.innerHTML = "";
 
@@ -342,6 +361,15 @@ summarizeBtn.addEventListener("click", async () => {
       showError(err.message);
     }
   }
+});
+
+// Mode toggle
+modeBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    modeBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    summaryMode = btn.dataset.mode;
+  });
 });
 
 settingsToggle.addEventListener("click", () => {
