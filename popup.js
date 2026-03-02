@@ -15,19 +15,23 @@ const endpointInput = document.getElementById("api-endpoint");
 const modelInput = document.getElementById("model-name");
 const loadingEl = document.getElementById("loading");
 const errorEl = document.getElementById("error");
-const resultEl = document.getElementById("result");
+const contentPanels = document.getElementById("content-panels");
+const summaryToggleBtn = document.getElementById("summary-toggle");
+const summaryBody = document.getElementById("summary-body");
 const summaryText = document.getElementById("summary-text");
 const truncationNote = document.getElementById("truncation-note");
-const copyBtn = document.getElementById("copy-btn");
+const chatToggleBtn = document.getElementById("chat-toggle");
+const chatBody = document.getElementById("chat-body");
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+const chatSendBtn = document.getElementById("chat-send");
+const copySummaryBtn = document.getElementById("copy-summary");
+const copyAllBtn = document.getElementById("copy-all");
 const historyToggle = document.getElementById("history-toggle");
 const historyPanel = document.getElementById("history-panel");
 const historyList = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
 const historyCount = document.getElementById("history-count");
-const chatSection = document.getElementById("chat-section");
-const chatMessages = document.getElementById("chat-messages");
-const chatInput = document.getElementById("chat-input");
-const chatSendBtn = document.getElementById("chat-send");
 
 // Chat state
 let chatConversation = [];
@@ -146,7 +150,7 @@ function renderHistory(history) {
 function showLoading() {
   loadingEl.classList.remove("hidden");
   errorEl.classList.add("hidden");
-  resultEl.classList.add("hidden");
+  contentPanels.classList.add("hidden");
   summarizeBtn.disabled = true;
 }
 
@@ -154,7 +158,7 @@ function showError(message) {
   loadingEl.classList.add("hidden");
   errorEl.textContent = message;
   errorEl.classList.remove("hidden");
-  resultEl.classList.add("hidden");
+  contentPanels.classList.add("hidden");
   summarizeBtn.disabled = false;
 }
 
@@ -162,16 +166,22 @@ function showResult(text, wasTruncated) {
   loadingEl.classList.add("hidden");
   errorEl.classList.add("hidden");
   summaryText.textContent = text;
-  resultEl.classList.remove("hidden");
+  contentPanels.classList.remove("hidden");
   summarizeBtn.disabled = false;
-  chatSection.classList.remove("hidden");
 
   if (wasTruncated) {
-    truncationNote.textContent = `Page content was trimmed to ${MAX_CHARS.toLocaleString()} characters.`;
+    truncationNote.textContent = `(trimmed to ${MAX_CHARS.toLocaleString()} chars)`;
     truncationNote.classList.remove("hidden");
   } else {
     truncationNote.classList.add("hidden");
   }
+}
+
+// Accordion
+
+function toggleAccordion(headerBtn, bodyEl) {
+  headerBtn.classList.toggle("active");
+  bodyEl.classList.toggle("collapsed");
 }
 
 // Core logic
@@ -282,11 +292,35 @@ saveSettingsBtn.addEventListener("click", async () => {
   settingsPanel.classList.add("hidden");
 });
 
-copyBtn.addEventListener("click", async () => {
+summaryToggleBtn.addEventListener("click", () => {
+  toggleAccordion(summaryToggleBtn, summaryBody);
+});
+
+chatToggleBtn.addEventListener("click", () => {
+  toggleAccordion(chatToggleBtn, chatBody);
+});
+
+copySummaryBtn.addEventListener("click", async () => {
   await navigator.clipboard.writeText(summaryText.textContent);
-  copyBtn.textContent = "Copied!";
+  copySummaryBtn.textContent = "Copied!";
   setTimeout(() => {
-    copyBtn.textContent = "Copy";
+    copySummaryBtn.textContent = "Copy Summary";
+  }, 1500);
+});
+
+copyAllBtn.addEventListener("click", async () => {
+  let text = "## Summary\n\n" + summaryText.textContent;
+  if (chatConversation.length > 0) {
+    text += "\n\n## Q&A\n";
+    for (const msg of chatConversation) {
+      const label = msg.role === "user" ? "Q" : "A";
+      text += `\n**${label}:** ${msg.content}\n`;
+    }
+  }
+  await navigator.clipboard.writeText(text);
+  copyAllBtn.textContent = "Copied!";
+  setTimeout(() => {
+    copyAllBtn.textContent = "Copy Summary + Chat";
   }, 1500);
 });
 

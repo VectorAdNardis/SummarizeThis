@@ -158,16 +158,78 @@ h1 {
   line-height: 1.4;
 }
 
-/* Result */
-.result {
+/* Content panels */
+#content-panels {
   margin-top: 14px;
-  padding: 12px;
-  background: #272738;
-  border-radius: 8px;
-  max-height: 300px;
-  overflow-y: auto;
 }
 
+/* Accordion */
+.accordion {
+  margin-bottom: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #272738;
+}
+
+.accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #2a2a3e;
+  border: none;
+  color: #ccc;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.accordion-header:hover {
+  background: #32324a;
+}
+
+.accordion-chevron {
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.accordion-header.active .accordion-chevron {
+  transform: rotate(0deg);
+}
+
+.accordion-header:not(.active) .accordion-chevron {
+  transform: rotate(-90deg);
+}
+
+.accordion-body {
+  padding: 10px 12px;
+  max-height: 250px;
+  overflow-y: auto;
+  transition: max-height 0.2s ease;
+}
+
+.accordion-body.collapsed {
+  max-height: 0;
+  padding: 0 12px;
+  overflow: hidden;
+}
+
+.accordion-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.accordion-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.accordion-body::-webkit-scrollbar-thumb {
+  background: #3a3a50;
+  border-radius: 3px;
+}
+
+/* Summary text */
 #summary-text {
   font-size: 13px;
   line-height: 1.6;
@@ -176,45 +238,25 @@ h1 {
   word-wrap: break-word;
 }
 
-.result-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid #3a3a50;
-}
-
 .note {
   font-size: 11px;
   color: #888;
+  margin-left: auto;
 }
 
-/* Chat section */
-.chat-section {
-  margin-top: 14px;
+/* Copy bar */
+.copy-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
 }
 
 .chat-messages {
-  max-height: 200px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 10px;
-}
-
-.chat-messages::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: #3a3a50;
-  border-radius: 3px;
 }
 
 .chat-msg {

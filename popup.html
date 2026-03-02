@@ -37,24 +37,44 @@
 
     <div id="error" class="error hidden"></div>
 
-    <div id="result" class="result hidden">
-      <div id="summary-text"></div>
-      <div class="result-footer">
-        <span id="truncation-note" class="note hidden"></span>
-        <button id="copy-btn" class="btn btn-small">Copy</button>
-      </div>
-    </div>
-
-    <div id="chat-section" class="chat-section hidden">
-      <div id="chat-messages" class="chat-messages"></div>
-      <div class="chat-input-row">
-        <input type="text" id="chat-input" placeholder="Ask a question about this page..." />
-        <button id="chat-send" class="btn btn-primary chat-send-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    <div id="content-panels" class="hidden">
+      <div class="accordion">
+        <button id="summary-toggle" class="accordion-header active">
+          <svg class="accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
           </svg>
+          Summary
+          <span id="truncation-note" class="note hidden"></span>
         </button>
+        <div id="summary-body" class="accordion-body">
+          <div id="summary-text"></div>
+        </div>
+      </div>
+
+      <div class="accordion">
+        <button id="chat-toggle" class="accordion-header active">
+          <svg class="accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+          Chat
+        </button>
+        <div id="chat-body" class="accordion-body">
+          <div id="chat-messages" class="chat-messages"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Ask a question about this page..." />
+            <button id="chat-send" class="btn btn-primary chat-send-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="copy-bar">
+        <button id="copy-summary" class="btn btn-small">Copy Summary</button>
+        <button id="copy-all" class="btn btn-small">Copy Summary + Chat</button>
       </div>
     </div>
 
