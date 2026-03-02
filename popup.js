@@ -58,7 +58,7 @@ async function getHistory() {
   return data.history || [];
 }
 
-async function saveToHistory(url, title, summary) {
+async function saveToHistory(url, title, summary, chat) {
   const history = await getHistory();
 
   // Replace existing entry for same URL, or add new
@@ -67,6 +67,7 @@ async function saveToHistory(url, title, summary) {
     url,
     title: title || url,
     summary,
+    chat: chat || [],
     timestamp: Date.now(),
   };
 
@@ -85,6 +86,16 @@ async function saveToHistory(url, title, summary) {
   history.sort((a, b) => b.timestamp - a.timestamp);
 
   await chrome.storage.local.set({ history });
+}
+
+async function updateHistoryChat(url) {
+  const history = await getHistory();
+  const entry = history.find((h) => h.url === url);
+  if (entry) {
+    entry.chat = [...chatConversation];
+    entry.timestamp = Date.now();
+    await chrome.storage.local.set({ history });
+  }
 }
 
 async function clearHistory() {
@@ -116,10 +127,13 @@ function renderHistory(history) {
         ? entry.summary.slice(0, 120) + "..."
         : entry.summary;
 
+      const qCount = entry.chat ? entry.chat.filter((m) => m.role === "user").length : 0;
+      const qBadge = qCount > 0 ? `<span class="history-badge">${qCount} Q&A</span>` : "";
+
       return `<div class="history-item" data-url="${entry.url.replaceAll('"', '&quot;')}">
         <div class="history-item-header">
           <span class="history-title">${titleText}</span>
-          <span class="history-time">${timeStr}</span>
+          <span class="history-meta">${qBadge}<span class="history-time">${timeStr}</span></span>
         </div>
         <div class="history-preview">${previewText}</div>
       </div>`;
@@ -354,6 +368,12 @@ async function sendChatMessage() {
     typingEl.textContent = reply;
     typingEl.classList.remove("typing");
     chatConversation.push({ role: "assistant", content: reply });
+
+    // Persist chat to history
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url) {
+      await updateHistoryChat(tab.url);
+    }
   } catch (err) {
     typingEl.textContent = `Error: ${err.message}`;
     typingEl.classList.remove("typing");
@@ -383,6 +403,15 @@ async function checkCachedSummary() {
   if (cached) {
     showResult(cached.summary, false);
     summarizeBtn.textContent = "Re-summarize This Page";
+
+    // Restore saved chat conversation
+    if (cached.chat && cached.chat.length > 0) {
+      chatConversation = [...cached.chat];
+      chatMessages.innerHTML = "";
+      for (const msg of cached.chat) {
+        addChatMessage(msg.role, msg.content);
+      }
+    }
   }
 }
 
