@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Summarize any web page using your local LLM via LM Studio",
   "permissions": ["activeTab", "scripting", "storage", "downloads"],
-  "host_permissions": ["http://localhost/*"],
+  "host_permissions": ["http://localhost/*", "<all_urls>"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

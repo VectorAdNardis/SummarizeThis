@@ -6,6 +6,9 @@ const DEFAULT_SETTINGS = {
   model: "default",
 };
 
+// PDF.js worker setup
+pdfjsLib.GlobalWorkerOptions.workerSrc = "lib/pdf.worker.min.js";
+
 // DOM elements
 const summarizeBtn = document.getElementById("summarize-btn");
 const settingsToggle = document.getElementById("settings-toggle");
@@ -200,6 +203,43 @@ function toggleAccordion(headerBtn, bodyEl) {
 
 // Core logic
 
+function isPdfUrl(url) {
+  if (!url) return false;
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    return pathname.endsWith(".pdf");
+  } catch {
+    return false;
+  }
+}
+
+async function extractPdfText(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch PDF (${response.status}).`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  const textParts = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map((item) => item.str).join(" ");
+    if (pageText.trim()) {
+      textParts.push(pageText.trim());
+    }
+  }
+
+  const fullText = textParts.join("\n\n");
+  if (!fullText) {
+    throw new Error("No text content found in this PDF.");
+  }
+
+  return fullText;
+}
+
 async function extractPageText() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -210,6 +250,11 @@ async function extractPageText() {
   // chrome:// and edge:// pages cannot be scripted
   if (tab.url?.startsWith("chrome://") || tab.url?.startsWith("edge://")) {
     throw new Error("Cannot extract text from browser internal pages.");
+  }
+
+  // PDF handling — fetch and parse with pdf.js
+  if (isPdfUrl(tab.url)) {
+    return extractPdfText(tab.url);
   }
 
   const results = await chrome.scripting.executeScript({
