@@ -8,8 +8,8 @@ All processing happens locally — no data is sent to external servers.
 
 ## Features
 
-- **One-click summaries** of any web page or PDF
-- **Extend** a brief summary into a detailed one (auto-retries if the model's context window is too small)
+- **One-click detailed summaries** of any web page or PDF (auto-retries if the model's context window is too small)
+- **TL;DR** — condense any summary into a brief version
 - **Chat** — ask follow-up questions about the page content
 - **History** — previously summarized pages are cached and restored automatically
 - **Export** — save summaries as `.md` files or copy to clipboard
@@ -73,10 +73,10 @@ Make sure LM Studio (or your chosen server) is running with a model loaded and t
 
 1. Navigate to any web page or PDF
 2. Click the **Summarize This** extension icon in your toolbar
-3. Click **Summarize** — the page text is extracted, sent to your local LLM, and a brief summary appears
+3. Click **Summarize** — the page text is extracted, sent to your local LLM, and a detailed summary appears (auto-retries with smaller inputs if the model's context is exceeded)
 4. After the summary loads:
-   - **Re-summarize** — regenerate the summary
-   - **Extend** — get a detailed, in-depth summary (auto-retries with smaller inputs if the model's context is exceeded)
+   - **TL;DR** — condense into a brief summary
+   - **Re-summarize** — regenerate the detailed summary
 5. Use the **Chat** panel to ask follow-up questions about the page
 6. **Copy** or **Export .md** to save the summary
 

@@ -44,7 +44,7 @@ const historyToggle = document.getElementById("history-toggle");
 const historyPanel = document.getElementById("history-panel");
 const historyList = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
-const extendBtn = document.getElementById("extend-btn");
+const tldrBtn = document.getElementById("tldr-btn");
 const historyCount = document.getElementById("history-count");
 
 // State
@@ -183,7 +183,7 @@ function showLoading(message) {
   errorEl.classList.add("hidden");
   contentPanels.classList.add("hidden");
   summarizeBtn.disabled = true;
-  extendBtn.disabled = true;
+  tldrBtn.disabled = true;
 }
 
 function showError(message) {
@@ -192,7 +192,7 @@ function showError(message) {
   errorEl.classList.remove("hidden");
   contentPanels.classList.add("hidden");
   summarizeBtn.disabled = false;
-  extendBtn.disabled = false;
+  tldrBtn.disabled = false;
 }
 
 function escapeHtml(str) {
@@ -292,14 +292,15 @@ function showResult(text, wasTruncated) {
 
   // Show action buttons after first summary
   summarizeBtn.textContent = "Re-summarize";
+  tldrBtn.classList.remove("hidden");
   if (isExtended) {
-    extendBtn.textContent = "Extended";
-    extendBtn.disabled = true;
-    extendBtn.classList.remove("hidden");
+    // Extended summary shown — offer TL;DR
+    tldrBtn.textContent = "TL;DR";
+    tldrBtn.disabled = false;
   } else {
-    extendBtn.textContent = "Extend";
-    extendBtn.disabled = false;
-    extendBtn.classList.remove("hidden");
+    // Brief (TL;DR) already shown
+    tldrBtn.textContent = "TL;DR";
+    tldrBtn.disabled = true;
   }
 
   if (wasTruncated) {
@@ -486,7 +487,6 @@ async function summarizeExtended(text, settings) {
 
 summarizeBtn.addEventListener("click", async () => {
   showLoading("Summarizing...");
-  isExtended = false;
 
   try {
     const settings = await loadSettings();
@@ -497,11 +497,12 @@ summarizeBtn.addEventListener("click", async () => {
     fullPageText = text;
 
     currentFormat = settings.summaryFormat || "plain";
-    const charLimit = settings.maxChars || DEFAULT_MAX_CHARS;
-    const { summary, wasTruncated } = await summarize(text, settings, "brief", charLimit);
+    const { summary, wasTruncated } = await summarizeExtended(text, settings);
+    isExtended = true;
     showResult(summary, wasTruncated);
 
     // Store page content for chat context and reset conversation
+    const charLimit = settings.maxChars || DEFAULT_MAX_CHARS;
     pageContentForChat = text.length > charLimit ? text.slice(0, charLimit) : text;
     chatConversation = [];
     chatMessages.innerHTML = "";
@@ -519,8 +520,8 @@ summarizeBtn.addEventListener("click", async () => {
   }
 });
 
-extendBtn.addEventListener("click", async () => {
-  showLoading("Extending...");
+tldrBtn.addEventListener("click", async () => {
+  showLoading("Summarizing...");
 
   try {
     const settings = await loadSettings();
@@ -531,11 +532,12 @@ extendBtn.addEventListener("click", async () => {
     }
 
     currentFormat = settings.summaryFormat || "plain";
-    const { summary, wasTruncated } = await summarizeExtended(fullPageText, settings);
-    isExtended = true;
+    const charLimit = settings.maxChars || DEFAULT_MAX_CHARS;
+    const { summary, wasTruncated } = await summarize(fullPageText, settings, "brief", charLimit);
+    isExtended = false;
     showResult(summary, wasTruncated);
 
-    // Update history with extended summary
+    // Update history with brief summary
     await saveToHistory(currentPageUrl, currentPageTitle, summary, chatConversation);
   } catch (err) {
     // Restore UI without hiding the existing summary
@@ -543,7 +545,7 @@ extendBtn.addEventListener("click", async () => {
     errorEl.textContent = err.message;
     errorEl.classList.remove("hidden");
     summarizeBtn.disabled = false;
-    extendBtn.disabled = false;
+    tldrBtn.disabled = false;
   }
 });
 
@@ -799,7 +801,7 @@ async function checkCachedSummary() {
   const history = await getHistory();
   const cached = history.find((h) => h.url === tab.url);
   if (cached) {
-    isExtended = false;
+    isExtended = true;
     showResult(cached.summary, false);
 
     // Restore saved chat conversation
