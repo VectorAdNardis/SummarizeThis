@@ -47,8 +47,8 @@ Any server that exposes an OpenAI-compatible `/v1/chat/completions` endpoint wil
 **Option A — Clone the repo:**
 
 ```bash
-git clone <repo-url>
-cd "Extension Summarizer"
+git clone https://github.com/VectorAdNardis/SummarizeThis.git
+cd SummarizeThis
 ```
 
 **Option B — Download as ZIP:**
@@ -60,7 +60,7 @@ Download and unzip the project folder to a permanent location on your machine.
 1. Open Chrome and navigate to `chrome://extensions`
 2. Enable **Developer mode** (toggle in the top-right corner)
 3. Click **Load unpacked**
-4. Select the `Extension Summarizer` folder (the one containing `manifest.json`)
+4. Select the `SummarizeThis` folder (the one containing `manifest.json`)
 5. The extension icon will appear in your toolbar
 
 > Also works on other Chromium browsers: **Edge**, **Brave**, **Arc**, **Vivaldi**, etc. — same process.
@@ -96,7 +96,7 @@ Click the gear icon to configure:
 ## Project Structure
 
 ```
-Extension Summarizer/
+SummarizeThis/
   manifest.json          Chrome extension manifest (Manifest V3)
   popup.html             Popup UI
   popup.css              Styles (liquid glass dark theme)
