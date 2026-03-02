@@ -73,8 +73,13 @@
       </div>
 
       <div class="copy-bar">
-        <button id="copy-summary" class="btn btn-small">Copy Summary</button>
-        <button id="copy-all" class="btn btn-small">Copy Summary + Chat</button>
+        <div class="copy-dropdown">
+          <button id="copy-btn" class="btn btn-small">Copy</button>
+          <div id="copy-menu" class="copy-menu hidden">
+            <button id="copy-summary" class="copy-option">Summary only</button>
+            <button id="copy-all" class="copy-option">Summary + Chat</button>
+          </div>
+        </div>
       </div>
     </div>
 

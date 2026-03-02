@@ -247,9 +247,48 @@ h1 {
 /* Copy bar */
 .copy-bar {
   display: flex;
-  gap: 8px;
   margin-top: 8px;
   justify-content: flex-end;
+}
+
+.copy-dropdown {
+  position: relative;
+}
+
+.copy-menu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 4px;
+  background: #2a2a3e;
+  border: 1px solid #3a3a50;
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.copy-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.copy-option:hover {
+  background: #3a3a50;
+  color: #fff;
+}
+
+.copy-option + .copy-option {
+  border-top: 1px solid #3a3a50;
 }
 
 .chat-messages {

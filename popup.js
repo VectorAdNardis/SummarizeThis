@@ -25,6 +25,8 @@ const chatBody = document.getElementById("chat-body");
 const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const chatSendBtn = document.getElementById("chat-send");
+const copyBtn = document.getElementById("copy-btn");
+const copyMenu = document.getElementById("copy-menu");
 const copySummaryBtn = document.getElementById("copy-summary");
 const copyAllBtn = document.getElementById("copy-all");
 const historyToggle = document.getElementById("history-toggle");
@@ -300,15 +302,31 @@ chatToggleBtn.addEventListener("click", () => {
   toggleAccordion(chatToggleBtn, chatBody);
 });
 
-copySummaryBtn.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(summaryText.textContent);
-  copySummaryBtn.textContent = "Copied!";
-  setTimeout(() => {
-    copySummaryBtn.textContent = "Copy Summary";
-  }, 1500);
+copyBtn.addEventListener("click", () => {
+  copyMenu.classList.toggle("hidden");
 });
 
-copyAllBtn.addEventListener("click", async () => {
+// Close menu when clicking outside
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".copy-dropdown")) {
+    copyMenu.classList.add("hidden");
+  }
+});
+
+async function copyAndConfirm(text) {
+  await navigator.clipboard.writeText(text);
+  copyMenu.classList.add("hidden");
+  copyBtn.textContent = "Copied!";
+  setTimeout(() => {
+    copyBtn.textContent = "Copy";
+  }, 1500);
+}
+
+copySummaryBtn.addEventListener("click", () => {
+  copyAndConfirm(summaryText.textContent);
+});
+
+copyAllBtn.addEventListener("click", () => {
   let text = "## Summary\n\n" + summaryText.textContent;
   if (chatConversation.length > 0) {
     text += "\n\n## Q&A\n";
@@ -317,11 +335,7 @@ copyAllBtn.addEventListener("click", async () => {
       text += `\n**${label}:** ${msg.content}\n`;
     }
   }
-  await navigator.clipboard.writeText(text);
-  copyAllBtn.textContent = "Copied!";
-  setTimeout(() => {
-    copyAllBtn.textContent = "Copy Summary + Chat";
-  }, 1500);
+  copyAndConfirm(text);
 });
 
 historyToggle.addEventListener("click", async () => {
