@@ -3,7 +3,7 @@
   "name": "Page Summarizer",
   "version": "1.0.0",
   "description": "Summarize any web page using your local LLM via LM Studio",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
   "host_permissions": ["http://localhost/*"],
   "action": {
     "default_popup": "popup.html",

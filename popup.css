@@ -75,8 +75,30 @@ h1 {
   transition: border-color 0.2s;
 }
 
-.settings input:focus {
+.settings input:focus,
+.settings select:focus {
   border-color: #7c6ff7;
+}
+
+.settings select {
+  padding: 6px 10px;
+  border: 1px solid #3a3a50;
+  border-radius: 6px;
+  background: #1e1e2e;
+  color: #e0e0e0;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.settings-divider {
+  border-top: 1px solid #3a3a50;
+  margin: 2px 0;
+}
+
+.settings-hint {
+  font-size: 10px;
+  color: #666;
 }
 
 /* Buttons */

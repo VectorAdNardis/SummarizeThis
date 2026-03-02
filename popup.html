@@ -25,10 +25,23 @@
         Model Name
         <input type="text" id="model-name" placeholder="default">
       </label>
+      <div class="settings-divider"></div>
+      <label>
+        Export Mode
+        <select id="export-mode">
+          <option value="ask">Always ask where to save</option>
+          <option value="auto">Auto-save to subfolder</option>
+        </select>
+      </label>
+      <label>
+        Export Subfolder
+        <input type="text" id="export-subfolder" placeholder="PageSummaries">
+        <span class="settings-hint">Relative to your Downloads folder (used in auto mode)</span>
+      </label>
       <button id="save-settings" class="btn btn-small">Save</button>
     </div>
 
-    <button id="summarize-btn" class="btn btn-primary">Summarize This Page</button>
+    <button id="summarize-btn" class="btn btn-primary">Summarize</button>
 
     <div id="loading" class="hidden">
       <div class="spinner"></div>
@@ -73,6 +86,13 @@
       </div>
 
       <div class="copy-bar">
+        <div class="copy-dropdown">
+          <button id="export-btn" class="btn btn-small">Export .md</button>
+          <div id="export-menu" class="copy-menu hidden">
+            <button id="export-summary" class="copy-option">Summary only</button>
+            <button id="export-all" class="copy-option">Summary + Chat</button>
+          </div>
+        </div>
         <div class="copy-dropdown">
           <button id="copy-btn" class="btn btn-small">Copy</button>
           <div id="copy-menu" class="copy-menu hidden">

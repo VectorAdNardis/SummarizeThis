@@ -29,24 +29,34 @@ const copyBtn = document.getElementById("copy-btn");
 const copyMenu = document.getElementById("copy-menu");
 const copySummaryBtn = document.getElementById("copy-summary");
 const copyAllBtn = document.getElementById("copy-all");
+const exportBtn = document.getElementById("export-btn");
+const exportMenu = document.getElementById("export-menu");
+const exportSummaryBtn = document.getElementById("export-summary");
+const exportAllBtn = document.getElementById("export-all");
+const exportModeSelect = document.getElementById("export-mode");
+const exportSubfolderInput = document.getElementById("export-subfolder");
 const historyToggle = document.getElementById("history-toggle");
 const historyPanel = document.getElementById("history-panel");
 const historyList = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
 const historyCount = document.getElementById("history-count");
 
-// Chat state
+// State
 let chatConversation = [];
 let pageContentForChat = "";
+let currentPageUrl = "";
+let currentPageTitle = "";
 
 // Settings
 
 async function loadSettings() {
-  const data = await chrome.storage.local.get(["endpoint", "model"]);
+  const data = await chrome.storage.local.get(["endpoint", "model", "exportMode", "exportSubfolder"]);
   const endpoint = data.endpoint || DEFAULT_SETTINGS.endpoint;
   const model = data.model || DEFAULT_SETTINGS.model;
   endpointInput.value = endpoint;
   modelInput.value = model;
+  exportModeSelect.value = data.exportMode || "ask";
+  exportSubfolderInput.value = data.exportSubfolder || "PageSummaries";
   return { endpoint, model };
 }
 
@@ -54,6 +64,8 @@ async function saveSettings() {
   await chrome.storage.local.set({
     endpoint: endpointInput.value.trim() || DEFAULT_SETTINGS.endpoint,
     model: modelInput.value.trim() || DEFAULT_SETTINGS.model,
+    exportMode: exportModeSelect.value,
+    exportSubfolder: exportSubfolderInput.value.trim() || "PageSummaries",
   });
 }
 
@@ -263,6 +275,8 @@ summarizeBtn.addEventListener("click", async () => {
   try {
     const settings = await loadSettings();
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    currentPageUrl = tab.url;
+    currentPageTitle = tab.title;
     const text = await extractPageText();
     const { summary, wasTruncated } = await summarize(text, settings);
     showResult(summary, wasTruncated);
@@ -304,14 +318,23 @@ chatToggleBtn.addEventListener("click", () => {
 
 copyBtn.addEventListener("click", () => {
   copyMenu.classList.toggle("hidden");
+  exportMenu.classList.add("hidden");
 });
 
-// Close menu when clicking outside
+exportBtn.addEventListener("click", () => {
+  exportMenu.classList.toggle("hidden");
+  copyMenu.classList.add("hidden");
+});
+
+// Close menus when clicking outside
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".copy-dropdown")) {
     copyMenu.classList.add("hidden");
+    exportMenu.classList.add("hidden");
   }
 });
+
+// Copy
 
 async function copyAndConfirm(text) {
   await navigator.clipboard.writeText(text);
@@ -337,6 +360,81 @@ copyAllBtn.addEventListener("click", () => {
   }
   copyAndConfirm(text);
 });
+
+// Export
+
+function buildMarkdown(includeChat) {
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0];
+  const timeStr = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+  let md = `---\n`;
+  md += `date: ${dateStr}\n`;
+  md += `time: "${timeStr}"\n`;
+  md += `url: "${currentPageUrl || ""}"\n`;
+  md += `title: "${(currentPageTitle || "").replaceAll('"', '\\"')}"\n`;
+  md += `---\n\n`;
+  md += `# ${currentPageTitle || "Page Summary"}\n\n`;
+  md += `> **Source:** ${currentPageUrl || "unknown"}\n`;
+  md += `> **Date:** ${dateStr} ${timeStr}\n\n`;
+  md += `## Summary\n\n${summaryText.textContent}\n`;
+
+  if (includeChat && chatConversation.length > 0) {
+    md += `\n## Q&A\n`;
+    for (const msg of chatConversation) {
+      const label = msg.role === "user" ? "Q" : "A";
+      md += `\n**${label}:** ${msg.content}\n`;
+    }
+  }
+
+  return md;
+}
+
+function sanitizeFilename(str) {
+  return str
+    .replace(/[<>:"/\\|?*]/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 80);
+}
+
+async function exportMarkdown(includeChat) {
+  exportMenu.classList.add("hidden");
+
+  const md = buildMarkdown(includeChat);
+  const dataUrl = "data:text/markdown;base64," + btoa(unescape(encodeURIComponent(md)));
+
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0];
+  const safeName = sanitizeFilename(currentPageTitle || "summary");
+  const filename = `${dateStr}-${safeName}.md`;
+
+  const data = await chrome.storage.local.get(["exportMode", "exportSubfolder"]);
+  const mode = data.exportMode || "ask";
+  const subfolder = data.exportSubfolder || "PageSummaries";
+
+  const filePath = mode === "auto" ? `${subfolder}/${filename}` : filename;
+
+  chrome.downloads.download(
+    {
+      url: dataUrl,
+      filename: filePath,
+      saveAs: mode === "ask",
+    },
+    (downloadId) => {
+      if (chrome.runtime.lastError) {
+        exportBtn.textContent = "Error";
+      } else {
+        exportBtn.textContent = "Exported!";
+      }
+      setTimeout(() => {
+        exportBtn.textContent = "Export .md";
+      }, 1500);
+    }
+  );
+}
+
+exportSummaryBtn.addEventListener("click", () => exportMarkdown(false));
+exportAllBtn.addEventListener("click", () => exportMarkdown(true));
 
 historyToggle.addEventListener("click", async () => {
   const isHidden = historyPanel.classList.toggle("hidden");
@@ -446,11 +544,14 @@ async function checkCachedSummary() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url) return;
 
+  currentPageUrl = tab.url;
+  currentPageTitle = tab.title;
+
   const history = await getHistory();
   const cached = history.find((h) => h.url === tab.url);
   if (cached) {
     showResult(cached.summary, false);
-    summarizeBtn.textContent = "Re-summarize This Page";
+    summarizeBtn.textContent = "Re-summarize";
 
     // Restore saved chat conversation
     if (cached.chat && cached.chat.length > 0) {
