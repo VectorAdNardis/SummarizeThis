@@ -103,6 +103,24 @@ h1 {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+.footer-github {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #666;
+  text-decoration: none;
+  transition: color 0.2s;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.footer-github:hover {
+  color: #b0a0f0;
+}
+
 /* Settings panel */
 .settings {
   background: rgba(255, 255, 255, 0.06);
