@@ -43,16 +43,16 @@ const historyToggle = document.getElementById("history-toggle");
 const historyPanel = document.getElementById("history-panel");
 const historyList = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
+const extendBtn = document.getElementById("extend-btn");
 const historyCount = document.getElementById("history-count");
-
-const modeBtns = document.querySelectorAll(".mode-btn");
 
 // State
 let chatConversation = [];
 let pageContentForChat = "";
+let fullPageText = "";
 let currentPageUrl = "";
 let currentPageTitle = "";
-let summaryMode = "brief";
+let isExtended = false;
 
 // Settings
 
@@ -171,11 +171,13 @@ function renderHistory(history) {
 
 // UI helpers
 
-function showLoading() {
+function showLoading(message) {
   loadingEl.classList.remove("hidden");
+  loadingEl.querySelector("span").textContent = message || "Summarizing...";
   errorEl.classList.add("hidden");
   contentPanels.classList.add("hidden");
   summarizeBtn.disabled = true;
+  extendBtn.disabled = true;
 }
 
 function showError(message) {
@@ -184,6 +186,7 @@ function showError(message) {
   errorEl.classList.remove("hidden");
   contentPanels.classList.add("hidden");
   summarizeBtn.disabled = false;
+  extendBtn.disabled = false;
 }
 
 function showResult(text, wasTruncated) {
@@ -192,6 +195,18 @@ function showResult(text, wasTruncated) {
   summaryText.textContent = text;
   contentPanels.classList.remove("hidden");
   summarizeBtn.disabled = false;
+
+  // Show action buttons after first summary
+  summarizeBtn.textContent = "Re-summarize";
+  if (isExtended) {
+    extendBtn.textContent = "Extended";
+    extendBtn.disabled = true;
+    extendBtn.classList.remove("hidden");
+  } else {
+    extendBtn.textContent = "Extend";
+    extendBtn.disabled = false;
+    extendBtn.classList.remove("hidden");
+  }
 
   if (wasTruncated) {
     truncationNote.textContent = "(content was trimmed to fit model context)";
@@ -292,12 +307,10 @@ const SUMMARY_PROMPTS = {
   },
 };
 
-async function summarize(text, settings) {
-  const baseLimit = settings.maxChars || DEFAULT_MAX_CHARS;
-  const charLimit = summaryMode === "extended" ? baseLimit * 2 : baseLimit;
+async function summarize(text, settings, mode, charLimit) {
   const wasTruncated = text.length > charLimit;
   const content = wasTruncated ? text.slice(0, charLimit) : text;
-  const prompt = SUMMARY_PROMPTS[summaryMode];
+  const prompt = SUMMARY_PROMPTS[mode];
 
   const response = await fetch(settings.endpoint, {
     method: "POST",
@@ -315,9 +328,11 @@ async function summarize(text, settings) {
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(
+    const err = new Error(
       `LLM API returned ${response.status}. ${body ? body.slice(0, 200) : "Is LM Studio running?"}`
     );
+    err.status = response.status;
+    throw err;
   }
 
   const data = await response.json();
@@ -330,10 +345,46 @@ async function summarize(text, settings) {
   return { summary, wasTruncated };
 }
 
+const MIN_CHARS = 2000;
+
+async function summarizeExtended(text, settings) {
+  const baseLimit = settings.maxChars || DEFAULT_MAX_CHARS;
+  // Try progressively smaller inputs: 2x, 1.5x, 1x, 0.7x, 0.5x base
+  const limits = [
+    baseLimit * 2,
+    Math.floor(baseLimit * 1.5),
+    baseLimit,
+    Math.floor(baseLimit * 0.7),
+    Math.floor(baseLimit * 0.5),
+  ].map((l) => Math.max(l, MIN_CHARS));
+
+  // Deduplicate (in case multiple rounds collapse to MIN_CHARS)
+  const uniqueLimits = [...new Set(limits)];
+
+  let lastError;
+  for (const limit of uniqueLimits) {
+    try {
+      return await summarize(text, settings, "extended", limit);
+    } catch (err) {
+      lastError = err;
+      if (err.status === 400) {
+        // Context too large, try smaller
+        continue;
+      }
+      throw err; // Network error or other — stop immediately
+    }
+  }
+
+  throw new Error(
+    "Could not extend — content exceeds the model's maximum context length. Try loading a model with a larger context window in LM Studio."
+  );
+}
+
 // Event handlers
 
 summarizeBtn.addEventListener("click", async () => {
-  showLoading();
+  showLoading("Summarizing...");
+  isExtended = false;
 
   try {
     const settings = await loadSettings();
@@ -341,12 +392,14 @@ summarizeBtn.addEventListener("click", async () => {
     currentPageUrl = tab.url;
     currentPageTitle = tab.title;
     const text = await extractPageText();
-    const { summary, wasTruncated } = await summarize(text, settings);
+    fullPageText = text;
+
+    const charLimit = settings.maxChars || DEFAULT_MAX_CHARS;
+    const { summary, wasTruncated } = await summarize(text, settings, "brief", charLimit);
     showResult(summary, wasTruncated);
 
     // Store page content for chat context and reset conversation
-    const chatLimit = settings.maxChars || DEFAULT_MAX_CHARS;
-    pageContentForChat = text.length > chatLimit ? text.slice(0, chatLimit) : text;
+    pageContentForChat = text.length > charLimit ? text.slice(0, charLimit) : text;
     chatConversation = [];
     chatMessages.innerHTML = "";
 
@@ -363,13 +416,31 @@ summarizeBtn.addEventListener("click", async () => {
   }
 });
 
-// Mode toggle
-modeBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    modeBtns.forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    summaryMode = btn.dataset.mode;
-  });
+extendBtn.addEventListener("click", async () => {
+  showLoading("Extending...");
+
+  try {
+    const settings = await loadSettings();
+
+    // Re-extract page text if we don't have it (e.g. loaded from cache)
+    if (!fullPageText) {
+      fullPageText = await extractPageText();
+    }
+
+    const { summary, wasTruncated } = await summarizeExtended(fullPageText, settings);
+    isExtended = true;
+    showResult(summary, wasTruncated);
+
+    // Update history with extended summary
+    await saveToHistory(currentPageUrl, currentPageTitle, summary, chatConversation);
+  } catch (err) {
+    // Restore UI without hiding the existing summary
+    loadingEl.classList.add("hidden");
+    errorEl.textContent = err.message;
+    errorEl.classList.remove("hidden");
+    summarizeBtn.disabled = false;
+    extendBtn.disabled = false;
+  }
 });
 
 settingsToggle.addEventListener("click", () => {
@@ -623,8 +694,8 @@ async function checkCachedSummary() {
   const history = await getHistory();
   const cached = history.find((h) => h.url === tab.url);
   if (cached) {
+    isExtended = false;
     showResult(cached.summary, false);
-    summarizeBtn.textContent = "Re-summarize";
 
     // Restore saved chat conversation
     if (cached.chat && cached.chat.length > 0) {

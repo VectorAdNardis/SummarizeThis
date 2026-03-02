@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Page Summarizer",
-  "version": "1.0.0",
-  "description": "Summarize any web page using your local LLM via LM Studio",
+  "name": "Summarize This",
+  "version": "1.1.0",
+  "description": "Summarize any web page or PDF using your local LLM",
   "permissions": ["activeTab", "scripting", "storage", "downloads"],
   "host_permissions": ["http://localhost/*", "<all_urls>"],
   "action": {
