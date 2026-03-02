@@ -1,4 +1,5 @@
 const MAX_CHARS = 10000;
+const MAX_HISTORY = 200;
 
 const DEFAULT_SETTINGS = {
   endpoint: "http://localhost:1234/v1/chat/completions",
@@ -18,6 +19,11 @@ const resultEl = document.getElementById("result");
 const summaryText = document.getElementById("summary-text");
 const truncationNote = document.getElementById("truncation-note");
 const copyBtn = document.getElementById("copy-btn");
+const historyToggle = document.getElementById("history-toggle");
+const historyPanel = document.getElementById("history-panel");
+const historyList = document.getElementById("history-list");
+const clearHistoryBtn = document.getElementById("clear-history");
+const historyCount = document.getElementById("history-count");
 
 // Settings
 
@@ -35,6 +41,82 @@ async function saveSettings() {
     endpoint: endpointInput.value.trim() || DEFAULT_SETTINGS.endpoint,
     model: modelInput.value.trim() || DEFAULT_SETTINGS.model,
   });
+}
+
+// History
+
+async function getHistory() {
+  const data = await chrome.storage.local.get("history");
+  return data.history || [];
+}
+
+async function saveToHistory(url, title, summary) {
+  const history = await getHistory();
+
+  // Replace existing entry for same URL, or add new
+  const existingIdx = history.findIndex((h) => h.url === url);
+  const entry = {
+    url,
+    title: title || url,
+    summary,
+    timestamp: Date.now(),
+  };
+
+  if (existingIdx !== -1) {
+    history[existingIdx] = entry;
+  } else {
+    history.unshift(entry);
+  }
+
+  // Cap at MAX_HISTORY, drop oldest
+  if (history.length > MAX_HISTORY) {
+    history.length = MAX_HISTORY;
+  }
+
+  // Sort newest first
+  history.sort((a, b) => b.timestamp - a.timestamp);
+
+  await chrome.storage.local.set({ history });
+}
+
+async function clearHistory() {
+  await chrome.storage.local.remove("history");
+}
+
+function renderHistory(history) {
+  historyCount.textContent = `(${history.length})`;
+
+  if (history.length === 0) {
+    historyList.innerHTML = '<div class="history-empty">No summaries yet.</div>';
+    return;
+  }
+
+  historyList.innerHTML = history
+    .map((entry) => {
+      const date = new Date(entry.timestamp);
+      const timeStr = date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }) + " " + date.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const titleText = entry.title.length > 50
+        ? entry.title.slice(0, 50) + "..."
+        : entry.title;
+      const previewText = entry.summary.length > 120
+        ? entry.summary.slice(0, 120) + "..."
+        : entry.summary;
+
+      return `<div class="history-item" data-url="${entry.url.replaceAll('"', '&quot;')}">
+        <div class="history-item-header">
+          <span class="history-title">${titleText}</span>
+          <span class="history-time">${timeStr}</span>
+        </div>
+        <div class="history-preview">${previewText}</div>
+      </div>`;
+    })
+    .join("");
 }
 
 // UI helpers
@@ -145,9 +227,13 @@ summarizeBtn.addEventListener("click", async () => {
 
   try {
     const settings = await loadSettings();
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const text = await extractPageText();
     const { summary, wasTruncated } = await summarize(text, settings);
     showResult(summary, wasTruncated);
+
+    // Save to history
+    await saveToHistory(tab.url, tab.title, summary);
   } catch (err) {
     if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
       showError(
@@ -176,5 +262,47 @@ copyBtn.addEventListener("click", async () => {
   }, 1500);
 });
 
+historyToggle.addEventListener("click", async () => {
+  const isHidden = historyPanel.classList.toggle("hidden");
+  if (!isHidden) {
+    const history = await getHistory();
+    renderHistory(history);
+  }
+});
+
+clearHistoryBtn.addEventListener("click", async () => {
+  await clearHistory();
+  renderHistory([]);
+});
+
+historyList.addEventListener("click", (e) => {
+  const item = e.target.closest(".history-item");
+  if (!item) return;
+
+  const url = item.dataset.url;
+  const history = JSON.parse(historyList.dataset.cache || "[]");
+  // Find entry and show it
+  getHistory().then((hist) => {
+    const entry = hist.find((h) => h.url === url);
+    if (entry) {
+      showResult(entry.summary, false);
+    }
+  });
+});
+
+// Check if current page has a cached summary on open
+async function checkCachedSummary() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url) return;
+
+  const history = await getHistory();
+  const cached = history.find((h) => h.url === tab.url);
+  if (cached) {
+    showResult(cached.summary, false);
+    summarizeBtn.textContent = "Re-summarize This Page";
+  }
+}
+
 // Init
 loadSettings();
+checkCachedSummary();

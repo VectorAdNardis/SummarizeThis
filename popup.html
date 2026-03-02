@@ -44,6 +44,20 @@
         <button id="copy-btn" class="btn btn-small">Copy</button>
       </div>
     </div>
+
+    <div class="history-section">
+      <button id="history-toggle" class="btn btn-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        History <span id="history-count"></span>
+      </button>
+      <div id="history-panel" class="hidden">
+        <div id="history-list"></div>
+        <button id="clear-history" class="btn btn-small btn-danger">Clear History</button>
+      </div>
+    </div>
   </div>
 
   <script src="popup.js"></script>
