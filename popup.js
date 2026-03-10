@@ -39,7 +39,7 @@ const exportAllBtn = document.getElementById("export-all");
 const maxCharsInput = document.getElementById("max-chars");
 const exportModeSelect = document.getElementById("export-mode");
 const exportSubfolderInput = document.getElementById("export-subfolder");
-const summaryFormatSelect = document.getElementById("summary-format");
+const viewToggleBtn = document.getElementById("view-toggle");
 const historyToggle = document.getElementById("history-toggle");
 const historyPanel = document.getElementById("history-panel");
 const historyList = document.getElementById("history-list");
@@ -54,24 +54,22 @@ let fullPageText = "";
 let currentPageUrl = "";
 let currentPageTitle = "";
 let isExtended = false;
-let currentFormat = "plain";
+let viewMode = "rendered"; // "rendered" or "source"
 let rawSummaryText = "";
 
 // Settings
 
 async function loadSettings() {
-  const data = await chrome.storage.local.get(["endpoint", "model", "maxChars", "exportMode", "exportSubfolder", "summaryFormat"]);
+  const data = await chrome.storage.local.get(["endpoint", "model", "maxChars", "exportMode", "exportSubfolder"]);
   const endpoint = data.endpoint || DEFAULT_SETTINGS.endpoint;
   const model = data.model || DEFAULT_SETTINGS.model;
   const maxChars = data.maxChars || DEFAULT_MAX_CHARS;
-  const summaryFormat = data.summaryFormat || "plain";
   endpointInput.value = endpoint;
   modelInput.value = model;
   maxCharsInput.value = maxChars;
-  summaryFormatSelect.value = summaryFormat;
   exportModeSelect.value = data.exportMode || "ask";
   exportSubfolderInput.value = data.exportSubfolder || "PageSummaries";
-  return { endpoint, model, maxChars, summaryFormat };
+  return { endpoint, model, maxChars };
 }
 
 async function saveSettings() {
@@ -79,7 +77,6 @@ async function saveSettings() {
     endpoint: endpointInput.value.trim() || DEFAULT_SETTINGS.endpoint,
     model: modelInput.value.trim() || DEFAULT_SETTINGS.model,
     maxChars: parseInt(maxCharsInput.value, 10) || DEFAULT_MAX_CHARS,
-    summaryFormat: summaryFormatSelect.value || "plain",
     exportMode: exportModeSelect.value,
     exportSubfolder: exportSubfolderInput.value.trim() || "PageSummaries",
   });
@@ -204,6 +201,9 @@ function renderMarkdown(md) {
   const html = [];
   let inList = false;
   let listType = null; // "ul" or "ol"
+  let inTable = false;
+  let tableHeader = null;
+  let tableRows = [];
 
   function closeList() {
     if (inList) {
@@ -211,6 +211,31 @@ function renderMarkdown(md) {
       inList = false;
       listType = null;
     }
+  }
+
+  function closeTable() {
+    if (!inTable) return;
+    let t = "<table>";
+    if (tableHeader) {
+      t += "<thead><tr>";
+      for (const cell of tableHeader) {
+        t += `<th>${inlineFormat(cell)}</th>`;
+      }
+      t += "</tr></thead>";
+    }
+    t += "<tbody>";
+    for (const row of tableRows) {
+      t += "<tr>";
+      for (const cell of row) {
+        t += `<td>${inlineFormat(cell)}</td>`;
+      }
+      t += "</tr>";
+    }
+    t += "</tbody></table>";
+    html.push(t);
+    inTable = false;
+    tableHeader = null;
+    tableRows = [];
   }
 
   function inlineFormat(text) {
@@ -221,8 +246,38 @@ function renderMarkdown(md) {
     return s;
   }
 
+  function parseTableCells(line) {
+    // Strip leading/trailing pipes and split
+    const stripped = line.replace(/^\|/, "").replace(/\|$/, "");
+    return stripped.split("|").map((c) => c.trim());
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // Table rows (lines containing |)
+    if (line.includes("|") && line.trim().startsWith("|")) {
+      closeList();
+      const cells = parseTableCells(line);
+
+      // Skip separator rows (|---|---|)
+      if (cells.every((c) => /^:?-+:?$/.test(c))) {
+        continue;
+      }
+
+      if (!inTable) {
+        inTable = true;
+        tableHeader = cells;
+      } else {
+        tableRows.push(cells);
+      }
+      continue;
+    }
+
+    // If we were in a table and hit a non-table line, close it
+    if (inTable) {
+      closeTable();
+    }
 
     // Headings
     const headingMatch = line.match(/^(#{1,4})\s+(.+)$/);
@@ -268,17 +323,20 @@ function renderMarkdown(md) {
     html.push(`<p>${inlineFormat(line)}</p>`);
   }
 
+  closeTable();
   closeList();
   return html.join("\n");
 }
 
-function displaySummary(text, format) {
-  if (format === "markdown") {
+function displaySummary(text) {
+  if (viewMode === "rendered") {
     summaryText.innerHTML = renderMarkdown(text);
     summaryText.classList.add("md-rendered");
+    viewToggleBtn.textContent = "Markdown";
   } else {
     summaryText.textContent = text;
     summaryText.classList.remove("md-rendered");
+    viewToggleBtn.textContent = "Formatted";
   }
 }
 
@@ -286,7 +344,7 @@ function showResult(text, wasTruncated) {
   loadingEl.classList.add("hidden");
   errorEl.classList.add("hidden");
   rawSummaryText = text;
-  displaySummary(text, currentFormat);
+  displaySummary(text);
   contentPanels.classList.remove("hidden");
   summarizeBtn.disabled = false;
 
@@ -387,23 +445,17 @@ async function extractPageText() {
   return text.trim();
 }
 
-const FORMAT_INSTRUCTIONS = {
-  plain:
-    "Do NOT use any markdown formatting — no headings (#), no bold (**), no bullet symbols (- or *). Write in plain sentences and paragraphs separated by blank lines. Use numbered lists (1. 2. 3.) only when listing items.",
-  markdown:
-    "Format your response using markdown: use headings (##, ###), bold (**), bullet lists (- ), and numbered lists where appropriate.",
-};
+const FORMAT_INSTRUCTIONS =
+  "Format your response using markdown: use headings (##, ###), bold (**), bullet lists (- ), numbered lists, and tables where appropriate.";
 
 const SUMMARY_PROMPTS = {
   brief: {
-    system: (fmt) =>
-      `You are a helpful assistant. Summarize the following web page content concisely. Focus on the key points and main ideas. Use clear, readable language. ${FORMAT_INSTRUCTIONS[fmt]}`,
+    system: `You are a helpful assistant. Summarize the following web page content concisely. Focus on the key points and main ideas. Use clear, readable language. ${FORMAT_INSTRUCTIONS}`,
     user: "Please summarize this web page briefly:\n\n",
     maxTokens: 1024,
   },
   extended: {
-    system: (fmt) =>
-      `You are a helpful assistant. Provide a detailed, in-depth summary of the following content. If the content has chapters, sections, or subheadings, organize your summary to reflect that structure. Include nuanced details, key arguments, and supporting points. Be thorough but readable. ${FORMAT_INSTRUCTIONS[fmt]}`,
+    system: `You are a helpful assistant. Provide a detailed, in-depth summary of the following content. If the content has chapters, sections, or subheadings, organize your summary to reflect that structure. Include nuanced details, key arguments, and supporting points. Be thorough but readable. ${FORMAT_INSTRUCTIONS}`,
     user: "Please provide a detailed summary of this content:\n\n",
     maxTokens: 4096,
   },
@@ -413,7 +465,6 @@ async function summarize(text, settings, mode, charLimit) {
   const wasTruncated = text.length > charLimit;
   const content = wasTruncated ? text.slice(0, charLimit) : text;
   const prompt = SUMMARY_PROMPTS[mode];
-  const fmt = settings.summaryFormat || "plain";
 
   const response = await fetch(settings.endpoint, {
     method: "POST",
@@ -421,7 +472,7 @@ async function summarize(text, settings, mode, charLimit) {
     body: JSON.stringify({
       model: settings.model,
       messages: [
-        { role: "system", content: prompt.system(fmt) },
+        { role: "system", content: prompt.system },
         { role: "user", content: prompt.user + content },
       ],
       temperature: 0.3,
@@ -496,7 +547,6 @@ summarizeBtn.addEventListener("click", async () => {
     const text = await extractPageText();
     fullPageText = text;
 
-    currentFormat = settings.summaryFormat || "plain";
     const { summary, wasTruncated } = await summarizeExtended(text, settings);
     isExtended = true;
     showResult(summary, wasTruncated);
@@ -531,7 +581,6 @@ tldrBtn.addEventListener("click", async () => {
       fullPageText = await extractPageText();
     }
 
-    currentFormat = settings.summaryFormat || "plain";
     const charLimit = settings.maxChars || DEFAULT_MAX_CHARS;
     const { summary, wasTruncated } = await summarize(fullPageText, settings, "brief", charLimit);
     isExtended = false;
@@ -560,6 +609,14 @@ saveSettingsBtn.addEventListener("click", async () => {
 
 summaryToggleBtn.addEventListener("click", () => {
   toggleAccordion(summaryToggleBtn, summaryBody);
+});
+
+viewToggleBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  viewMode = viewMode === "rendered" ? "source" : "rendered";
+  if (rawSummaryText) {
+    displaySummary(rawSummaryText);
+  }
 });
 
 chatToggleBtn.addEventListener("click", () => {
@@ -794,9 +851,6 @@ async function checkCachedSummary() {
 
   currentPageUrl = tab.url;
   currentPageTitle = tab.title;
-
-  const settings = await loadSettings();
-  currentFormat = settings.summaryFormat || "plain";
 
   const history = await getHistory();
   const cached = history.find((h) => h.url === tab.url);

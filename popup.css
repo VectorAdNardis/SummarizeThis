@@ -426,6 +426,49 @@ h1 {
   font-size: 12px;
 }
 
+#summary-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+#summary-text th,
+#summary-text td {
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+#summary-text th {
+  background: rgba(255, 255, 255, 0.06);
+  color: #eee;
+  font-weight: 500;
+}
+
+#summary-text td {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* View toggle */
+.view-toggle {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #888;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.view-toggle:hover {
+  color: #bbb;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .note {
   font-size: 11px;
   color: #777;
