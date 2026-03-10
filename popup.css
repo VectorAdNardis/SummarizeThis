@@ -450,23 +450,16 @@ h1 {
   background: rgba(0, 0, 0, 0.15);
 }
 
-/* View toggle */
-.view-toggle {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 3px 10px;
-  font-size: 11px;
-  color: #888;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+/* Header actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
-.view-toggle:hover {
-  color: #bbb;
-  background: rgba(255, 255, 255, 0.08);
+.icon-btn.active {
+  color: #b0a0f0;
+  background: rgba(124, 111, 247, 0.12);
 }
 
 .note {
@@ -562,6 +555,55 @@ h1 {
 .chat-msg.typing {
   color: #888;
   font-style: italic;
+}
+
+.chat-msg.md-rendered {
+  white-space: normal;
+}
+
+.chat-msg h1, .chat-msg h2, .chat-msg h3, .chat-msg h4 {
+  color: #eee;
+  margin: 6px 0 2px;
+  line-height: 1.3;
+}
+
+.chat-msg h2 { font-size: 13px; }
+.chat-msg h3 { font-size: 12px; }
+
+.chat-msg p { margin: 4px 0; }
+
+.chat-msg ul, .chat-msg ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.chat-msg li { margin: 1px 0; }
+
+.chat-msg strong { color: #eee; }
+
+.chat-msg code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.chat-msg table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.chat-msg th, .chat-msg td {
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.chat-msg th {
+  background: rgba(255, 255, 255, 0.06);
+  color: #eee;
 }
 
 .chat-input-row {

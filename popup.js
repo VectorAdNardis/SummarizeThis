@@ -332,11 +332,9 @@ function displaySummary(text) {
   if (viewMode === "rendered") {
     summaryText.innerHTML = renderMarkdown(text);
     summaryText.classList.add("md-rendered");
-    viewToggleBtn.textContent = "Markdown";
   } else {
     summaryText.textContent = text;
     summaryText.classList.remove("md-rendered");
-    viewToggleBtn.textContent = "Formatted";
   }
 }
 
@@ -614,9 +612,22 @@ summaryToggleBtn.addEventListener("click", () => {
 viewToggleBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   viewMode = viewMode === "rendered" ? "source" : "rendered";
+  viewToggleBtn.classList.toggle("active", viewMode === "rendered");
   if (rawSummaryText) {
     displaySummary(rawSummaryText);
   }
+  // Re-render chat messages
+  chatMessages.querySelectorAll(".chat-msg.assistant").forEach((el) => {
+    const raw = el.dataset.raw;
+    if (!raw) return;
+    if (viewMode === "rendered") {
+      el.innerHTML = renderMarkdown(raw);
+      el.classList.add("md-rendered");
+    } else {
+      el.textContent = raw;
+      el.classList.remove("md-rendered");
+    }
+  });
 });
 
 chatToggleBtn.addEventListener("click", () => {
@@ -769,7 +780,13 @@ historyList.addEventListener("click", (e) => {
 function addChatMessage(role, text) {
   const div = document.createElement("div");
   div.className = `chat-msg ${role}`;
-  div.textContent = text;
+  div.dataset.raw = text;
+  if (role === "assistant" && viewMode === "rendered") {
+    div.innerHTML = renderMarkdown(text);
+    div.classList.add("md-rendered");
+  } else {
+    div.textContent = text;
+  }
   chatMessages.appendChild(div);
   chatMessages.scrollTop = chatMessages.scrollHeight;
   return div;
@@ -816,7 +833,13 @@ async function sendChatMessage() {
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || "No response.";
 
-    typingEl.textContent = reply;
+    typingEl.dataset.raw = reply;
+    if (viewMode === "rendered") {
+      typingEl.innerHTML = renderMarkdown(reply);
+      typingEl.classList.add("md-rendered");
+    } else {
+      typingEl.textContent = reply;
+    }
     typingEl.classList.remove("typing");
     chatConversation.push({ role: "assistant", content: reply });
 
@@ -870,5 +893,6 @@ async function checkCachedSummary() {
 }
 
 // Init
+viewToggleBtn.classList.add("active");
 loadSettings();
 checkCachedSummary();
