@@ -28,10 +28,6 @@ const chatBody = document.getElementById("chat-body");
 const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const chatSendBtn = document.getElementById("chat-send");
-const copyBtn = document.getElementById("copy-btn");
-const copyMenu = document.getElementById("copy-menu");
-const copySummaryBtn = document.getElementById("copy-summary");
-const copyAllBtn = document.getElementById("copy-all");
 const exportBtn = document.getElementById("export-btn");
 const exportMenu = document.getElementById("export-menu");
 const exportSummaryBtn = document.getElementById("export-summary");
@@ -643,49 +639,16 @@ chatToggleBtn.addEventListener("click", () => {
   toggleAccordion(chatToggleBtn, chatBody);
 });
 
-copyBtn.addEventListener("click", () => {
-  copyMenu.classList.toggle("hidden");
-  exportMenu.classList.add("hidden");
-});
-
-exportBtn.addEventListener("click", () => {
+exportBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
   exportMenu.classList.toggle("hidden");
-  copyMenu.classList.add("hidden");
 });
 
 // Close menus when clicking outside
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".copy-dropdown")) {
-    copyMenu.classList.add("hidden");
+  if (!e.target.closest(".header-dropdown")) {
     exportMenu.classList.add("hidden");
   }
-});
-
-// Copy
-
-async function copyAndConfirm(text) {
-  await navigator.clipboard.writeText(text);
-  copyMenu.classList.add("hidden");
-  copyBtn.textContent = "Copied!";
-  setTimeout(() => {
-    copyBtn.textContent = "Copy";
-  }, 1500);
-}
-
-copySummaryBtn.addEventListener("click", () => {
-  copyAndConfirm(rawSummaryText);
-});
-
-copyAllBtn.addEventListener("click", () => {
-  let text = "## Summary\n\n" + rawSummaryText;
-  if (chatConversation.length > 0) {
-    text += "\n\n## Q&A\n";
-    for (const msg of chatConversation) {
-      const label = msg.role === "user" ? "Q" : "A";
-      text += `\n**${label}:** ${msg.content}\n`;
-    }
-  }
-  copyAndConfirm(text);
 });
 
 // Export
@@ -748,14 +711,10 @@ async function exportMarkdown(includeChat) {
       saveAs: mode === "ask",
     },
     (downloadId) => {
-      if (chrome.runtime.lastError) {
-        exportBtn.textContent = "Error";
-      } else {
-        exportBtn.textContent = "Exported!";
+      if (!chrome.runtime.lastError) {
+        exportBtn.classList.add("active");
+        setTimeout(() => exportBtn.classList.remove("active"), 1200);
       }
-      setTimeout(() => {
-        exportBtn.textContent = "Export .md";
-      }, 1500);
     }
   );
 }

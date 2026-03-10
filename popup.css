@@ -523,35 +523,28 @@ h1 {
   margin-left: auto;
 }
 
-/* Copy bar */
-.copy-bar {
-  display: flex;
-  margin-top: 8px;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.copy-dropdown {
+/* Header dropdown (export) */
+.header-dropdown {
   position: relative;
 }
 
-.copy-menu {
+.header-menu {
   position: absolute;
-  bottom: 100%;
+  top: 100%;
   right: 0;
-  margin-bottom: 4px;
-  background: rgba(25, 25, 45, 0.8);
+  margin-top: 4px;
+  background: rgba(25, 25, 45, 0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  min-width: 160px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-  z-index: 10;
+  min-width: 150px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  z-index: 20;
 }
 
-.copy-option {
+.header-menu-option {
   display: block;
   width: 100%;
   padding: 8px 12px;
@@ -564,12 +557,12 @@ h1 {
   transition: background 0.1s;
 }
 
-.copy-option:hover {
+.header-menu-option:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #eee;
 }
 
-.copy-option + .copy-option {
+.header-menu-option + .header-menu-option {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
