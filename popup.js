@@ -630,6 +630,15 @@ viewToggleBtn.addEventListener("click", (e) => {
   });
 });
 
+// Summary inline copy button
+document.querySelector('.inline-copy-btn[data-copy-target="summary"]').addEventListener("click", () => {
+  if (!rawSummaryText) return;
+  const btn = document.querySelector('.inline-copy-btn[data-copy-target="summary"]');
+  navigator.clipboard.writeText(rawSummaryText);
+  btn.classList.add("copied");
+  setTimeout(() => btn.classList.remove("copied"), 1200);
+});
+
 chatToggleBtn.addEventListener("click", () => {
   toggleAccordion(chatToggleBtn, chatBody);
 });
@@ -777,7 +786,21 @@ historyList.addEventListener("click", (e) => {
 
 // Chat
 
+function createInlineCopyBtn() {
+  const btn = document.createElement("button");
+  btn.className = "inline-copy-btn";
+  btn.title = "Copy";
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>`;
+  return btn;
+}
+
 function addChatMessage(role, text) {
+  const wrapper = document.createElement("div");
+  wrapper.className = `chat-msg-wrapper${role === "assistant" ? " copyable-block" : ""}`;
+
   const div = document.createElement("div");
   div.className = `chat-msg ${role}`;
   div.dataset.raw = text;
@@ -787,7 +810,29 @@ function addChatMessage(role, text) {
   } else {
     div.textContent = text;
   }
-  chatMessages.appendChild(div);
+  wrapper.appendChild(div);
+
+  if (role === "assistant") {
+    const copyBtn = createInlineCopyBtn();
+    copyBtn.addEventListener("click", () => {
+      // Read from dataset.raw so it picks up updated text (e.g. after "Thinking..." is replaced)
+      const answerText = div.dataset.raw || text;
+      let copyText = answerText;
+      const prev = wrapper.previousElementSibling;
+      if (prev) {
+        const userMsg = prev.querySelector(".chat-msg.user");
+        if (userMsg) {
+          copyText = `Q: ${userMsg.dataset.raw}\n\nA: ${answerText}`;
+        }
+      }
+      navigator.clipboard.writeText(copyText);
+      copyBtn.classList.add("copied");
+      setTimeout(() => copyBtn.classList.remove("copied"), 1200);
+    });
+    wrapper.appendChild(copyBtn);
+  }
+
+  chatMessages.appendChild(wrapper);
   chatMessages.scrollTop = chatMessages.scrollHeight;
   return div;
 }
