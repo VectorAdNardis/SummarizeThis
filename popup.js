@@ -627,13 +627,15 @@ viewToggleBtn.addEventListener("click", (e) => {
 });
 
 // Summary inline copy button
-document.querySelector('.inline-copy-btn[data-copy-target="summary"]').addEventListener("click", () => {
-  if (!rawSummaryText) return;
-  const btn = document.querySelector('.inline-copy-btn[data-copy-target="summary"]');
-  navigator.clipboard.writeText(rawSummaryText);
-  btn.classList.add("copied");
-  setTimeout(() => btn.classList.remove("copied"), 1200);
-});
+const summaryCopyBtn = document.querySelector('.inline-copy-btn[data-copy-target="summary"]');
+if (summaryCopyBtn) {
+  summaryCopyBtn.addEventListener("click", () => {
+    if (!rawSummaryText) return;
+    navigator.clipboard.writeText(rawSummaryText);
+    summaryCopyBtn.classList.add("copied");
+    setTimeout(() => summaryCopyBtn.classList.remove("copied"), 1200);
+  });
+}
 
 chatToggleBtn.addEventListener("click", () => {
   toggleAccordion(chatToggleBtn, chatBody);
