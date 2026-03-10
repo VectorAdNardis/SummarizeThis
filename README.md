@@ -9,12 +9,15 @@ All processing happens locally — no data is sent to external servers.
 ## Features
 
 - **One-click detailed summaries** of any web page or PDF (auto-retries if the model's context window is too small)
+- **Chunked summarization** — automatically splits long documents (books, research papers) into sections, summarizes each, then combines into one comprehensive summary
 - **TL;DR** — condense any summary into a brief version
 - **Chat** — ask follow-up questions about the page content
+- **Formatted view** — toggle between rendered markdown and raw source (tables, headings, lists)
+- **Inline copy** — hover over any summary or chat response to copy it (chat answers include the question)
 - **History** — previously summarized pages are cached and restored automatically
-- **Export** — save summaries as `.md` files or copy to clipboard
+- **Export** — save summaries as `.md` files via the header export icon
 - **PDF support** — extracts text from PDF files via PDF.js
-- **Configurable** — API endpoint, model name, max input length, summary format (plain text / markdown), export settings
+- **Configurable** — API endpoint, model name, max input length, export settings
 
 ### Privacy
 
@@ -78,7 +81,8 @@ Make sure LM Studio (or your chosen server) is running with a model loaded and t
    - **TL;DR** — condense into a brief summary
    - **Re-summarize** — regenerate the detailed summary
 5. Use the **Chat** panel to ask follow-up questions about the page
-6. **Copy** or **Export .md** to save the summary
+6. Toggle the **formatted view** icon to switch between rendered and raw markdown
+7. Hover over any response to **copy** it, or click the **export icon** in the header to save as `.md`
 
 ## Settings
 
@@ -88,8 +92,7 @@ Click the gear icon to configure:
 |---|---|---|
 | API Endpoint | URL of your LLM server | `http://localhost:1234/v1/chat/completions` |
 | Model Name | Model identifier to send in API requests | `default` |
-| Max Input Length | Maximum characters of page text sent to the LLM | `10000` |
-| Summary Format | Output format: Plain text or Markdown | Plain text |
+| Max Input Length | Maximum characters of page text sent to the LLM (also controls chunk size for long documents) | `10000` |
 | Export Mode | Ask where to save, or auto-save to a subfolder | Always ask |
 | Export Subfolder | Folder inside Downloads for auto-save | `PageSummaries` |
 

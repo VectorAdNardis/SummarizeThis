@@ -453,6 +453,14 @@ const SUMMARY_PROMPTS = {
     user: "Please provide a detailed summary of this content:\n\n",
     maxTokens: 4096,
   },
+  chunk_map: {
+    system: `You are a helpful assistant. You are summarizing one section of a longer document. Provide a thorough summary of THIS section, preserving key details, arguments, names, dates, and data points. Do not add introductions or conclusions about the overall document — just summarize what is in this section. ${FORMAT_INSTRUCTIONS}`,
+    maxTokens: 2048,
+  },
+  chunk_reduce: {
+    system: `You are a helpful assistant. You are given summaries of consecutive sections of a document. Combine them into a single, coherent, comprehensive summary. Preserve the document's structure and flow. Eliminate redundancy from overlapping sections but do not lose any key information. ${FORMAT_INSTRUCTIONS}`,
+    maxTokens: 4096,
+  },
 };
 
 async function summarize(text, settings, mode, charLimit) {
@@ -495,8 +503,156 @@ async function summarize(text, settings, mode, charLimit) {
 
 const MIN_CHARS = 2000;
 
+function splitIntoChunks(text, chunkSize, overlap = 200) {
+  if (text.length <= chunkSize) return [text];
+
+  const chunks = [];
+  let start = 0;
+
+  while (start < text.length) {
+    let end = Math.min(start + chunkSize, text.length);
+
+    if (end < text.length) {
+      const slice = text.slice(start, end);
+      const searchStart = Math.floor(slice.length * 0.8);
+      const lastParaBreak = slice.lastIndexOf("\n\n");
+
+      if (lastParaBreak > searchStart) {
+        end = start + lastParaBreak + 2;
+      } else {
+        const lastSentence = slice.lastIndexOf(". ", slice.length);
+        if (lastSentence > searchStart) {
+          end = start + lastSentence + 2;
+        }
+      }
+    }
+
+    chunks.push(text.slice(start, end).trim());
+    const advance = Math.max(end - start - overlap, Math.floor(chunkSize * 0.5));
+    start += advance;
+  }
+
+  return chunks.filter((c) => c.length > 0);
+}
+
+async function summarizeChunk(chunkText, chunkIndex, totalChunks, settings) {
+  const prompt = SUMMARY_PROMPTS.chunk_map;
+
+  const response = await fetch(settings.endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: settings.model,
+      messages: [
+        { role: "system", content: prompt.system },
+        {
+          role: "user",
+          content: `This is section ${chunkIndex + 1} of ${totalChunks} of a longer document. Summarize this section thoroughly:\n\n${chunkText}`,
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: prompt.maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    const err = new Error(
+      `LLM returned ${response.status} on chunk ${chunkIndex + 1}. ${body ? body.slice(0, 200) : ""}`
+    );
+    err.status = response.status;
+    throw err;
+  }
+
+  const data = await response.json();
+  const summary = data.choices?.[0]?.message?.content;
+  if (!summary) throw new Error(`Empty response for chunk ${chunkIndex + 1}.`);
+  return summary;
+}
+
+async function combineChunkSummaries(chunkSummaries, settings) {
+  const prompt = SUMMARY_PROMPTS.chunk_reduce;
+  const combined = chunkSummaries
+    .map((s, i) => `--- Section ${i + 1} ---\n${s}`)
+    .join("\n\n");
+
+  const charLimit = (settings.maxChars || DEFAULT_MAX_CHARS) * 2;
+  const content = combined.length > charLimit ? combined.slice(0, charLimit) : combined;
+
+  const response = await fetch(settings.endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: settings.model,
+      messages: [
+        { role: "system", content: prompt.system },
+        {
+          role: "user",
+          content: `The following are summaries of ${chunkSummaries.length} consecutive sections of a document. Combine them into one comprehensive summary:\n\n${content}`,
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: prompt.maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `LLM returned ${response.status} during final combination. ${body ? body.slice(0, 200) : ""}`
+    );
+  }
+
+  const data = await response.json();
+  const summary = data.choices?.[0]?.message?.content;
+  if (!summary) throw new Error("Empty response during final combination.");
+  return summary;
+}
+
+async function summarizeChunked(text, settings) {
+  const chunkSize = settings.maxChars || DEFAULT_MAX_CHARS;
+  const overlap = Math.min(200, Math.floor(chunkSize * 0.02));
+  const chunks = splitIntoChunks(text, chunkSize, overlap);
+
+  if (chunks.length === 1) {
+    return await summarize(text, settings, "extended", chunkSize);
+  }
+
+  const chunkSummaries = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    showLoading(`Summarizing section ${i + 1} of ${chunks.length}...`);
+
+    let retries = 0;
+    while (true) {
+      try {
+        const summary = await summarizeChunk(chunks[i], i, chunks.length, settings);
+        chunkSummaries.push(summary);
+        break;
+      } catch (err) {
+        if (err.status === 400 && retries < 1) {
+          retries++;
+          chunks[i] = chunks[i].slice(0, Math.floor(chunks[i].length * 0.7));
+          continue;
+        }
+        throw new Error(`Failed on section ${i + 1}/${chunks.length}: ${err.message}`);
+      }
+    }
+  }
+
+  showLoading(`Combining ${chunks.length} sections into final summary...`);
+  const finalSummary = await combineChunkSummaries(chunkSummaries, settings);
+  return { summary: finalSummary, wasTruncated: false };
+}
+
 async function summarizeExtended(text, settings) {
   const baseLimit = settings.maxChars || DEFAULT_MAX_CHARS;
+
+  // Very long content — skip single-pass attempts, go straight to chunked
+  if (text.length > baseLimit * 3) {
+    return await summarizeChunked(text, settings);
+  }
+
   // Try progressively smaller inputs: 2x, 1.5x, 1x, 0.7x, 0.5x base
   const limits = [
     baseLimit * 2,
@@ -521,6 +677,11 @@ async function summarizeExtended(text, settings) {
       }
       throw err; // Network error or other — stop immediately
     }
+  }
+
+  // All single-pass attempts failed — try chunked as last resort
+  if (text.length > baseLimit) {
+    return await summarizeChunked(text, settings);
   }
 
   throw new Error(
@@ -576,7 +737,9 @@ tldrBtn.addEventListener("click", async () => {
     }
 
     const charLimit = settings.maxChars || DEFAULT_MAX_CHARS;
-    const { summary, wasTruncated } = await summarize(fullPageText, settings, "brief", charLimit);
+    // Use the existing summary as input if available (better for chunked content)
+    const textForTldr = rawSummaryText || fullPageText;
+    const { summary, wasTruncated } = await summarize(textForTldr, settings, "brief", charLimit);
     isExtended = false;
     showResult(summary, wasTruncated);
 
